@@ -26,7 +26,7 @@
         return 'http://localhost:8787'; // default port wrangler dev
       }
       // Ganti dengan domain production Anda
-      return 'https://ace-ops-api.yourdomain.workers.dev';
+      return 'https://ace-ops-api.azrielspace852.workers.dev/';
     },
     get API_URL() { return this.API_BASE_URL + '/api/v1'; },
     endpoints: {
