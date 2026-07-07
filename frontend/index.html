@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>ACE OPERATIONS</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" class="loading-screen">
+    <div class="loading-logo">
+        <svg width="70" height="70" viewBox="0 0 64 64" fill="none">
+            <rect x="2" y="2" width="60" height="60" rx="14" fill="#6c6bfa"/>
+            <rect x="32" y="32" width="22" height="22" rx="5" fill="white" opacity="0.5"/>
+            <path d="M20 44L28 20H36L44 44H38L36 38H28L26 44H20ZM30 32H34L32 26L30 32Z" fill="white"/>
+            <circle cx="48" cy="16" r="4" fill="white" opacity="0.7"/>
+            <circle cx="16" cy="48" r="3" fill="white" opacity="0.5"/>
+        </svg>
+    </div>
+    <h1 class="loading-title">WELCOME TO ACE<span class="text-accent">OPS</span></h1>
+    <p class="loading-subtitle">BY AZRIEL ENTERPRISE</p>
+    <div class="loading-bar">
+        <div class="loading-bar-fill"></div>
+    </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen hidden">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">
+                <span class="auth-icon-text">A</span>
+            </div>
+            <h1 class="auth-title">ACE OPERATIONS</h1>
+            <p class="auth-subtitle">Panel Manajemen AI</p>
+        </div>
+        <form id="loginForm" class="auth-form">
+            <input type="email" id="loginEmail" placeholder="Email" class="auth-input" required />
+            <input type="password" id="loginPassword" placeholder="Password" class="auth-input" required />
+            <button type="submit" class="auth-btn">Masuk</button>
+            <p class="auth-switch">Belum punya akun? <a href="#" id="showRegisterLink" class="auth-link">Daftar</a></p>
+        </form>
+        <form id="registerForm" class="auth-form hidden">
+            <input type="text" id="regName" placeholder="Nama" class="auth-input" required />
+            <input type="email" id="regEmail" placeholder="Email" class="auth-input" required />
+            <input type="password" id="regPassword" placeholder="Password" class="auth-input" required />
+            <button type="submit" class="auth-btn">Daftar</button>
+            <p class="auth-switch">Sudah punya akun? <a href="#" id="showLoginLink" class="auth-link">Masuk</a></p>
+        </form>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app hidden">
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+                <rect x="2" y="2" width="60" height="60" rx="14" fill="#6c6bfa"/>
+                <rect x="32" y="32" width="22" height="22" rx="5" fill="white" opacity="0.5"/>
+                <path d="M20 44L28 20H36L44 44H38L36 38H28L26 44H20ZM30 32H34L32 26L30 32Z" fill="white"/>
+            </svg>
+            <span class="sidebar-brand-text">ACE<span class="text-accent font-normal">OPS</span></span>
+        </div>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <a href="#dashboard" class="sidebar-link active" data-page="dashboard">
+                <span class="sidebar-icon">&#9632;</span> Dashboard
+            </a>
+            <a href="#instances" class="sidebar-link" data-page="instances">
+                <span class="sidebar-icon">&#9670;</span> Instansi AI
+            </a>
+            <a href="#users" class="sidebar-link" data-page="users">
+                <span class="sidebar-icon">&#9655;</span> Pengguna
+            </a>
+            <a href="#databases" class="sidebar-link" data-page="databases">
+                <span class="sidebar-icon">&#9640;</span> Database
+            </a>
+            <hr class="sidebar-divider" />
+            <a href="#playground" class="sidebar-link" data-page="playground">
+                <span class="sidebar-icon">&#9654;</span> Playground
+            </a>
+            <a href="#knowledge" class="sidebar-link" data-page="knowledge">
+                <span class="sidebar-icon">&#9776;</span> Pengetahuan
+            </a>
+            <hr class="sidebar-divider" />
+            <a href="#settings" class="sidebar-link" data-page="settings">
+                <span class="sidebar-icon">&#9881;</span> Pengaturan
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-theme">
+                <span id="themeLabel" class="sidebar-theme-label">Mode Gelap</span>
+                <button id="themeToggle" class="theme-toggle"></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="mainContent"></main>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button data-nav="dashboard" class="bottom-nav-item active">
+            <span class="bottom-nav-icon">&#9632;</span>
+            <span class="bottom-nav-label">Dashboard</span>
+        </button>
+        <button data-nav="instances" class="bottom-nav-item">
+            <span class="bottom-nav-icon">&#9670;</span>
+            <span class="bottom-nav-label">AI</span>
+        </button>
+        <button data-nav="playground" class="bottom-nav-item">
+            <span class="bottom-nav-icon">&#9654;</span>
+            <span class="bottom-nav-label">Chat</span>
+        </button>
+        <button data-nav="users" class="bottom-nav-item">
+            <span class="bottom-nav-icon">&#9655;</span>
+            <span class="bottom-nav-label">User</span>
+        </button>
+        <div class="bottom-nav-more">
+            <button id="moreBtn" class="bottom-nav-item">
+                <span class="bottom-nav-icon">&#9776;</span>
+                <span class="bottom-nav-label">Lainnya</span>
+            </button>
+            <div id="moreMenu" class="more-menu hidden">
+                <button data-nav="knowledge" class="more-menu-item">&#9776; Pengetahuan</button>
+                <button data-nav="databases" class="more-menu-item">&#9640; Database</button>
+                <button data-nav="settings" class="more-menu-item">&#9881; Pengaturan</button>
+                <hr class="more-menu-divider" />
+                <button id="themeToggleMobile" class="more-menu-item">&#9681; Ganti Mode</button>
+            </div>
+        </div>
+    </nav>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- SCRIPTS -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
