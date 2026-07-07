@@ -1,0 +1,7 @@
+name = "ace-ops-api"
+main = "src/index.js"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# FIREBASE_SERVICE_ACCOUNT di-set via Cloudflare Dashboard (secrets)
