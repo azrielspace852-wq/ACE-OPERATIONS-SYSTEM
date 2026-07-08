@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<!-- LOADING SCREEN -->
+<!-- ===== LOADING SCREEN (hanya pemanis) ===== -->
 <div id="loadingScreen" class="loading-screen">
     <div class="loading-logo">
         <svg width="70" height="70" viewBox="0 0 64 64" fill="none">
@@ -26,13 +26,11 @@
     </div>
 </div>
 
-<!-- AUTH SCREEN -->
+<!-- ===== AUTH SCREEN ===== -->
 <div id="authScreen" class="auth-screen hidden">
     <div class="auth-card">
         <div class="auth-header">
-            <div class="auth-icon">
-                <span class="auth-icon-text">A</span>
-            </div>
+            <div class="auth-icon"><span class="auth-icon-text">A</span></div>
             <h1 class="auth-title">ACE OPERATIONS</h1>
             <p class="auth-subtitle">Panel Manajemen AI</p>
         </div>
@@ -52,7 +50,7 @@
     </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- ===== MAIN APP ===== -->
 <div id="app" class="app hidden">
     <!-- DESKTOP SIDEBAR -->
     <aside class="sidebar">
@@ -134,10 +132,27 @@
     </nav>
 </div>
 
-<!-- TOAST CONTAINER -->
+<!-- ===== TOAST CONTAINER ===== -->
 <div id="toastContainer" class="toast-container"></div>
 
-<!-- SCRIPTS -->
+<!-- ===== LOG ERROR BUTTON & MODAL ===== -->
+<button id="logErrorBtn" class="log-error-btn" title="Lihat Log Error">🐞</button>
+<div id="logErrorModal" class="log-error-modal hidden">
+    <div class="log-error-content">
+        <div class="log-error-header">
+            <h3>📋 Log Error</h3>
+            <button id="closeLogError" class="log-error-close">&times;</button>
+        </div>
+        <div id="logErrorList" class="log-error-list">
+            <p style="color: var(--text-muted); text-align:center; padding:1rem;">Belum ada error tercatat.</p>
+        </div>
+        <div class="log-error-footer">
+            <button id="clearLogError" class="log-error-clear">Hapus Semua</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
