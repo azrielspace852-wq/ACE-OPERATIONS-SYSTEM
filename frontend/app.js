@@ -1,7 +1,7 @@
 // ============================================================
-//  ACE OPERATIONS - Full Application
+//  ACE OPERATIONS - Full Application (Perbaikan Total)
 //  Single-file frontend (no bundler)
-//  Firebase Auth, State, UI Render, API calls
+//  Firebase Auth, State, UI Render, API calls, Log Error
 // ============================================================
 
 (function() {
@@ -12,7 +12,7 @@
   // ============================================================
   const CONFIG = {
     firebase: {
-      // Ganti dengan config Firebase Anda
+      // Ganti dengan config Firebase Anda yang valid
       apiKey: "AIzaSyBP_9ahQJQDLEYPxaOMhed3Hqo42aUpyak",
       authDomain: "azriel-web2.firebaseapp.com",
       projectId: "azriel-web2",
@@ -20,12 +20,10 @@
       messagingSenderId: "61856199612",
       appId: "1:61856199612:web:9bd6f786857406a9b3f1b9"
     },
-    // API Base URL – otomatis tergantung environment
     get API_BASE_URL() {
       if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-        return 'http://localhost:8787'; // default port wrangler dev
+        return 'http://localhost:8787';
       }
-      // Ganti dengan domain production Anda
       return 'https://ace-ops-api.azrielspace852.workers.dev/';
     },
     get API_URL() { return this.API_BASE_URL + '/api/v1'; },
@@ -52,7 +50,44 @@
   };
 
   // ============================================================
-  // 2. STATE MANAGEMENT
+  // 2. LOG ERROR SYSTEM
+  // ============================================================
+  const errorLog = [];
+  const MAX_ERROR_LOG = 50;
+
+  function captureError(error, context = '') {
+    const entry = {
+      time: new Date().toLocaleString(),
+      message: error.message || String(error),
+      stack: error.stack || '',
+      context: context
+    };
+    errorLog.unshift(entry);
+    if (errorLog.length > MAX_ERROR_LOG) errorLog.pop();
+    // Update UI jika modal terbuka
+    renderErrorLog();
+    // Tampilkan di console juga
+    console.error('[ACE-OPS Error]', context, error);
+  }
+
+  // Override console.error untuk menangkap error yang tidak terhandle
+  const originalConsoleError = console.error;
+  console.error = function(...args) {
+    originalConsoleError.apply(console, args);
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    captureError(new Error(msg), 'console.error');
+  };
+
+  // Tangkap error global
+  window.addEventListener('error', (event) => {
+    captureError(event.error || new Error(event.message), 'global error');
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    captureError(event.reason || new Error('Unhandled Promise rejection'), 'unhandled rejection');
+  });
+
+  // ============================================================
+  // 3. STATE MANAGEMENT
   // ============================================================
   class AppState {
     constructor() {
@@ -131,7 +166,7 @@
   const appState = new AppState();
 
   // ============================================================
-  // 3. UTILITIES
+  // 4. UTILITIES
   // ============================================================
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -164,8 +199,25 @@
     return date.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  function renderErrorLog() {
+    const list = document.getElementById('logErrorList');
+    if (!list) return;
+    if (errorLog.length === 0) {
+      list.innerHTML = '<p style="color: var(--text-muted); text-align:center; padding:1rem;">Belum ada error tercatat.</p>';
+      return;
+    }
+    list.innerHTML = errorLog.map(e => `
+      <div class="error-item">
+        <span class="error-time">${e.time}</span>
+        <span class="error-msg">${escapeHtml(e.message)}</span>
+        ${e.stack ? `<details><summary>Stack</summary><pre style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(e.stack)}</pre></details>` : ''}
+        ${e.context ? `<div style="font-size:0.7rem;color:var(--text-muted);">Context: ${escapeHtml(e.context)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
   // ============================================================
-  // 4. THEME
+  // 5. THEME
   // ============================================================
   function getTheme() { return appState.get('theme') || 'dark'; }
   function setTheme(theme) {
@@ -183,14 +235,18 @@
   }
 
   // ============================================================
-  // 5. AUTHENTICATION (Firebase)
+  // 6. AUTHENTICATION (Firebase)
   // ============================================================
   let auth = null;
+  let authInitialized = false;
+
   function initAuth(firebaseApp) {
     auth = firebaseApp.auth();
+    
     auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
+      authInitialized = true;
+      try {
+        if (user) {
           const token = await user.getIdToken();
           appState.setToken(token);
           appState.setUser({
@@ -199,18 +255,21 @@
             displayName: user.displayName || user.email
           });
           showToast('Selamat datang, ' + (user.displayName || 'User') + '!', 'success');
+          hideLoadingScreen();
           document.getElementById('authScreen').classList.add('hidden');
           document.getElementById('app').classList.remove('hidden');
           document.dispatchEvent(new CustomEvent('auth:login'));
-        } catch (err) {
-          console.error('Auth error:', err);
-          showToast('Gagal memverifikasi sesi', 'error');
-          auth.signOut();
+        } else {
+          appState.clearSession();
+          hideLoadingScreen();
+          document.getElementById('authScreen').classList.remove('hidden');
+          document.getElementById('app').classList.add('hidden');
+          document.dispatchEvent(new CustomEvent('auth:logout'));
         }
-      } else {
-        appState.clearSession();
-        document.getElementById('authScreen').classList.remove('hidden');
-        document.getElementById('app').classList.add('hidden');
+      } catch (err) {
+        captureError(err, 'auth state change');
+        hideLoadingScreen();
+        showToast('Error auth: ' + err.message, 'error');
       }
     });
 
@@ -219,9 +278,10 @@
       e.preventDefault();
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
-      auth.signInWithEmailAndPassword(email, password).catch(err =>
-        showToast('Login gagal: ' + err.message, 'error')
-      );
+      auth.signInWithEmailAndPassword(email, password).catch(err => {
+        captureError(err, 'login');
+        showToast('Login gagal: ' + err.message, 'error');
+      });
     });
     document.getElementById('registerForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -231,7 +291,10 @@
       auth.createUserWithEmailAndPassword(email, password)
         .then(cred => cred.user.updateProfile({ displayName: name }))
         .then(() => showToast('Akun berhasil dibuat!', 'success'))
-        .catch(err => showToast('Daftar gagal: ' + err.message, 'error'));
+        .catch(err => {
+          captureError(err, 'register');
+          showToast('Daftar gagal: ' + err.message, 'error');
+        });
     });
     document.getElementById('showRegisterLink').addEventListener('click', (e) => {
       e.preventDefault();
@@ -248,23 +311,23 @@
   async function refreshToken() {
     if (!auth || !auth.currentUser) return null;
     try {
-      const token = await auth.currentUser.getIdToken(true); // force refresh
+      const token = await auth.currentUser.getIdToken(true);
       appState.setToken(token);
       return token;
     } catch (err) {
-      console.error('Token refresh failed:', err);
+      captureError(err, 'refresh token');
       return null;
     }
   }
 
   function logout() {
-    if (auth) auth.signOut().catch(() => {});
+    if (auth) auth.signOut().catch(err => captureError(err, 'logout'));
     appState.clearSession();
     showToast('Anda telah keluar', 'info');
   }
 
   // ============================================================
-  // 6. API FETCH with Auto-Refresh on 403
+  // 7. API FETCH with Auto-Refresh on 403
   // ============================================================
   async function apiFetch(endpoint, options = {}) {
     const url = CONFIG.API_URL + endpoint;
@@ -281,20 +344,22 @@
     let token = appState.get('token');
     let response = await makeRequest(token);
 
-    // Jika 403 (token expired), coba refresh sekali
     if (response.status === 403 && token) {
       const newToken = await refreshToken();
       if (newToken) {
         response = await makeRequest(newToken);
+      } else {
+        // Refresh gagal, logout
+        logout();
+        throw new Error('Sesi kadaluarsa, silakan login ulang.');
       }
     }
 
-    // Parse JSON
     let data;
     try {
       data = await response.json();
     } catch (_) {
-      throw new Error('Invalid JSON response');
+      throw new Error('Respons tidak valid dari server.');
     }
 
     if (!response.ok) {
@@ -302,17 +367,14 @@
       const err = new Error(errMsg);
       err.status = response.status;
       if (response.status === 401 || response.status === 403) {
-        // Jika setelah refresh tetap 401/403, logout
-        if (response.status === 401) {
-          logout();
-        }
+        logout();
       }
       throw err;
     }
     return data;
   }
 
-  // Specific API functions
+  // API functions
   const API = {
     getInstances: () => apiFetch(CONFIG.endpoints.instances.list),
     createInstance: (data) => apiFetch(CONFIG.endpoints.instances.create, { method: 'POST', body: JSON.stringify(data) }),
@@ -328,7 +390,30 @@
   };
 
   // ============================================================
-  // 7. RENDER FUNCTIONS
+  // 8. LOADING SCREEN CONTROL
+  // ============================================================
+  let loadingHidden = false;
+
+  function hideLoadingScreen() {
+    if (loadingHidden) return;
+    loadingHidden = true;
+    const el = document.getElementById('loadingScreen');
+    if (el) el.classList.add('hidden');
+  }
+
+  // Force hide after 3 seconds (pemanis)
+  setTimeout(() => {
+    if (!loadingHidden) {
+      hideLoadingScreen();
+      // Tampilkan error jika auth belum siap
+      if (!authInitialized) {
+        showToast('Firebase lambat merespons, silakan refresh.', 'warning');
+      }
+    }
+  }, 3000);
+
+  // ============================================================
+  // 9. RENDER FUNCTIONS
   // ============================================================
 
   // ---------- DASHBOARD ----------
@@ -391,6 +476,7 @@
           </div>`;
       })
       .catch(err => {
+        captureError(err, 'dashboard load');
         showToast('Gagal dashboard: ' + err.message, 'error');
         document.getElementById('summaryContent').innerHTML = 'Gagal memuat data.';
       });
@@ -534,7 +620,10 @@
       showToast('Instansi berhasil dibuat!', 'success');
       closeInstanceModal();
       loadInstances();
-    }).catch(err => showToast('Gagal: ' + err.message, 'error'));
+    }).catch(err => {
+      captureError(err, 'create instance');
+      showToast('Gagal: ' + err.message, 'error');
+    });
   }
   function loadInstances() {
     const list = document.getElementById('instancesList');
@@ -559,13 +648,17 @@
           </div>
         </div>`).join('');
     }).catch(err => {
+      captureError(err, 'load instances');
       showToast('Gagal memuat instansi: ' + err.message, 'error');
       list.innerHTML = '<p class="text-center py-8 text-gray-500">Gagal memuat data</p>';
     });
   }
   window._deleteInstance = (id) => {
     if (!confirm('Yakin hapus?')) return;
-    API.deleteInstance(id).then(() => { showToast('Terhapus', 'info'); loadInstances(); }).catch(err => showToast('Gagal: '+err.message,'error'));
+    API.deleteInstance(id).then(() => { showToast('Terhapus', 'info'); loadInstances(); }).catch(err => {
+      captureError(err, 'delete instance');
+      showToast('Gagal: '+err.message,'error');
+    });
   };
 
   // ---------- KNOWLEDGE ----------
@@ -611,7 +704,10 @@
       showToast('Pengetahuan ditambahkan', 'success');
       closeKnowledgeModal();
       loadKnowledge();
-    }).catch(err => showToast('Gagal: '+err.message,'error'));
+    }).catch(err => {
+      captureError(err, 'create knowledge');
+      showToast('Gagal: '+err.message,'error');
+    });
   }
   function loadKnowledge() {
     const grid = document.getElementById('knowledgeGrid');
@@ -623,11 +719,17 @@
           <div class="flex justify-between"><h3 class="font-semibold text-sm">${k.title}</h3><button onclick="window._deleteKnowledge('${k.id}')" class="text-red-400 opacity-0 group-hover:opacity-100">Hapus</button></div>
           <p class="text-xs text-gray-500 line-clamp-2">${k.content}</p>
         </div>`).join('');
-    }).catch(err => showToast('Gagal: '+err.message,'error'));
+    }).catch(err => {
+      captureError(err, 'load knowledge');
+      showToast('Gagal: '+err.message,'error');
+    });
   }
   window._deleteKnowledge = (id) => {
     if (!confirm('Yakin hapus?')) return;
-    API.deleteKnowledge(id).then(() => { showToast('Terhapus', 'info'); loadKnowledge(); }).catch(err => showToast('Gagal: '+err.message,'error'));
+    API.deleteKnowledge(id).then(() => { showToast('Terhapus', 'info'); loadKnowledge(); }).catch(err => {
+      captureError(err, 'delete knowledge');
+      showToast('Gagal: '+err.message,'error');
+    });
   };
 
   // ---------- USERS ----------
@@ -650,10 +752,16 @@
         <td><span class="px-2 py-0.5 rounded-full text-xs ${u.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-red-500/10 text-red-400'}">${u.status||'active'}</span></td>
         <td><button onclick="window._resetCredit('${u.id}')" class="border px-2 py-1 text-xs rounded-md hover:bg-hover">Reset</button></td></tr>`;
       }).join('');
-    }).catch(err => showToast('Gagal: '+err.message,'error'));
+    }).catch(err => {
+      captureError(err, 'load users');
+      showToast('Gagal: '+err.message,'error');
+    });
   }
   window._resetCredit = (uid) => {
-    API.resetUserCredits(uid).then(() => { showToast('Kredit direset', 'success'); loadUsers(); }).catch(err => showToast('Gagal: '+err.message,'error'));
+    API.resetUserCredits(uid).then(() => { showToast('Kredit direset', 'success'); loadUsers(); }).catch(err => {
+      captureError(err, 'reset credit');
+      showToast('Gagal: '+err.message,'error');
+    });
   };
 
   // ---------- PLAYGROUND ----------
@@ -672,7 +780,7 @@
         <div class="bg-card border rounded-xl flex flex-col">
           <div class="flex-1 overflow-y-auto p-4 space-y-3" id="chatMessages"></div>
           <div class="flex gap-2 p-3 border-t">
-            <input id="chatInput" placeholder="Ketik pesan..." class="flex-1 px-3 py-2 bg-hover border rounded-lg" onkeydown="if(event.key==='Enter')window._sendPlayground()">
+            <input id="chatInput" placeholder="Ketik pesan..." class="flex-1 px-3 py-2 bg-hover border rounded-lg" onkeydown="if(event.key==='Enter') window._sendPlayground()">
             <button id="sendPlaygroundBtn" class="px-4 py-2 bg-accent text-white rounded-lg">Kirim</button>
           </div>
         </div>
@@ -683,9 +791,10 @@
       const instances = res.data?.instances || [];
       const sel = document.getElementById('pgInstance');
       sel.innerHTML = instances.map(i => `<option value="${i.slug||i.id}">${i.name}</option>`).join('') || '<option value="default">Default</option>';
-    }).catch(() => {});
+    }).catch(err => captureError(err, 'load playground instances'));
   }
-  window._sendPlayground = async () => {
+
+  window._sendPlayground = async function() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
     if (!msg) return;
@@ -706,10 +815,12 @@
       container.scrollTop = container.scrollHeight;
     } catch (err) {
       document.getElementById(loadingId)?.remove();
+      captureError(err, 'playground chat');
       container.innerHTML += `<div class="max-w-[85%] self-start bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2 text-sm text-red-400">❌ ${escapeHtml(err.message)}</div>`;
       showToast('Gagal: ' + err.message, 'error');
     }
   };
+
   function clearChat() {
     chatHistory = [];
     const container = document.getElementById('chatMessages');
@@ -730,7 +841,10 @@
       const u = res.data?.user || {};
       document.getElementById('settingsEmail').textContent = u.email || '-';
       document.getElementById('settingsName').textContent = u.displayName || '-';
-    }).catch(err => showToast('Gagal profil: '+err.message,'error'));
+    }).catch(err => {
+      captureError(err, 'load profile');
+      showToast('Gagal profil: '+err.message,'error');
+    });
     document.getElementById('settingsThemeBtn').addEventListener('click', () => {
       toggleTheme();
       document.getElementById('settingsThemeBtn').textContent = getTheme()==='dark'?'Mode Terang':'Mode Gelap';
@@ -749,7 +863,7 @@
   }
 
   // ============================================================
-  // 8. NAVIGATION
+  // 10. NAVIGATION
   // ============================================================
   const pageMap = {
     dashboard: renderDashboard,
@@ -791,24 +905,69 @@
   }
 
   // ============================================================
-  // 9. INIT
+  // 11. LOG ERROR MODAL HANDLING
   // ============================================================
-  function initApp() {
-    firebase.initializeApp(CONFIG.firebase);
-    setTheme(getTheme());
-    initAuth(firebase);
-    setupNavigation();
-    document.addEventListener('auth:login', () => navigate('dashboard'));
-    window.addEventListener('online', () => showToast('Koneksi kembali', 'success'));
-    window.addEventListener('offline', () => showToast('Koneksi terputus.', 'warning'));
+  function setupLogError() {
+    const btn = document.getElementById('logErrorBtn');
+    const modal = document.getElementById('logErrorModal');
+    const closeBtn = document.getElementById('closeLogError');
+    const clearBtn = document.getElementById('clearLogError');
 
-    // Theme toggle
-    document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
-    document.getElementById('themeToggleMobile')?.addEventListener('click', () => { toggleTheme(); document.getElementById('moreMenu')?.classList.add('hidden'); });
-
-    console.log('🚀 ACE OPERATIONS v1.0.0 ready');
+    btn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      renderErrorLog();
+    });
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.add('hidden');
+    });
+    clearBtn.addEventListener('click', () => {
+      errorLog.length = 0;
+      renderErrorLog();
+    });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
-  else initApp();
+  // ============================================================
+  // 12. INIT
+  // ============================================================
+  function initApp() {
+    try {
+      // Setup log error
+      setupLogError();
+
+      // Firebase
+      firebase.initializeApp(CONFIG.firebase);
+      setTheme(getTheme());
+      initAuth(firebase);
+      setupNavigation();
+
+      // Event listeners
+      document.addEventListener('auth:login', () => navigate('dashboard'));
+      document.addEventListener('auth:logout', () => {
+        // tetap di halaman auth, tidak perlu navigate
+      });
+      window.addEventListener('online', () => showToast('Koneksi kembali', 'success'));
+      window.addEventListener('offline', () => showToast('Koneksi terputus.', 'warning'));
+
+      // Theme toggle
+      document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+      document.getElementById('themeToggleMobile')?.addEventListener('click', () => {
+        toggleTheme();
+        document.getElementById('moreMenu')?.classList.add('hidden');
+      });
+
+      console.log('🚀 ACE OPERATIONS v2.0.0 ready');
+    } catch (err) {
+      captureError(err, 'initApp');
+      hideLoadingScreen();
+      showToast('Error inisialisasi: ' + err.message, 'error');
+    }
+  }
+
+  // Jalankan saat DOM siap
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 })();
