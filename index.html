@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatbot Sederhana (Tanpa Training)</title>
+<style>
+  :root{
+    --bg:#0f1420;
+    --panel:#161d2e;
+    --panel-2:#1d273d;
+    --line:#2a3654;
+    --text:#e7ecf7;
+    --muted:#8b98b5;
+    --accent:#4f8cff;
+    --accent-2:#7bb0ff;
+    --user:#2b4c8c;
+    --bot:#1b2439;
+    --ok:#3ecf8e;
+    --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 20% -10%, #1b2947 0%, var(--bg) 55%);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:16px;
+  }
+  .app{
+    width:100%;
+    max-width:860px;
+    height:min(92vh, 900px);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,0,0,.55);
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:linear-gradient(180deg,#1a2338,#161d2e);
+  }
+  .logo{
+    width:38px;height:38px;border-radius:11px;
+    background:linear-gradient(135deg,var(--accent),#8a5cff);
+    display:grid;place-items:center;font-size:20px;flex:none;
+  }
+  .titles{flex:1;min-width:0}
+  .titles h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px}
+  .titles p{margin:2px 0 0;font-size:12px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .status-dot{
+    width:9px;height:9px;border-radius:50%;background:#555;flex:none;
+    box-shadow:0 0 0 0 rgba(62,207,142,.6);
+  }
+  .status-dot.loading{background:#ffb347;animation:pulse 1.2s infinite}
+  .status-dot.ok{background:var(--ok)}
+  .status-dot.err{background:var(--err)}
+  @keyframes pulse{0%{opacity:1}50%{opacity:.35}100%{opacity:1}}
+
+  .icon-btn{
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;
+    display:grid;place-items:center;transition:.15s;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--accent);background:#1e2940}
+
+  /* ---------- Info bar ---------- */
+  .infobar{
+    font-size:12px;color:var(--muted);
+    padding:8px 18px;
+    border-bottom:1px solid var(--line);
+    background:#131a29;
+    display:flex;gap:14px;flex-wrap:wrap;align-items:center;
+  }
+  .infobar b{color:var(--accent-2);font-weight:600}
+  .infobar .chip{
+    background:#1c2740;border:1px solid var(--line);
+    padding:2px 8px;border-radius:20px;font-size:11px;
+  }
+  .infobar .chip.bad{border-color:#5b2b2b;color:#ff9b9b}
+  .infobar .chip.good{border-color:#245c45;color:#7ff0be}
+
+  /* ---------- Chat area ---------- */
+  .chat{
+    flex:1;overflow-y:auto;padding:18px;
+    display:flex;flex-direction:column;gap:14px;
+    scroll-behavior:smooth;
+  }
+  .chat::-webkit-scrollbar{width:9px}
+  .chat::-webkit-scrollbar-thumb{background:#26324c;border-radius:9px}
+  .chat::-webkit-scrollbar-track{background:transparent}
+
+  .msg{display:flex;gap:10px;max-width:88%;animation:pop .22s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .avatar{
+    width:32px;height:32px;border-radius:9px;flex:none;
+    display:grid;place-items:center;font-size:15px;
+    background:var(--panel-2);border:1px solid var(--line);
+  }
+  .msg.user .avatar{background:linear-gradient(135deg,#3b6fd4,#6f4bd8);border-color:transparent}
+  .bubble{
+    background:var(--bot);
+    border:1px solid var(--line);
+    padding:11px 14px;border-radius:14px;
+    font-size:14.5px;line-height:1.55;
+    white-space:pre-wrap;word-wrap:break-word;
+  }
+  .msg.user .bubble{background:var(--user);border-color:#3a5fa8}
+  .meta{
+    font-size:11px;color:var(--muted);margin-top:7px;
+    padding-top:6px;border-top:1px dashed #2a3654;
+    display:flex;gap:8px;flex-wrap:wrap;
+  }
+  .meta .badge{background:#202c45;padding:1px 7px;border-radius:20px;border:1px solid var(--line)}
+  .meta .badge.hi{color:#7ff0be;border-color:#245c45}
+  .meta .badge.mid{color:#ffd479;border-color:#5c4a1f}
+  .meta .badge.lo{color:#ff9b9b;border-color:#5b2b2b}
+
+  /* typing */
+  .typing{display:flex;gap:4px;padding:4px 2px}
+  .typing span{
+    width:7px;height:7px;border-radius:50%;background:var(--muted);
+    animation:bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2){animation-delay:.15s}
+  .typing span:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+
+  /* ---------- Composer ---------- */
+  .composer{
+    border-top:1px solid var(--line);
+    padding:12px 14px;
+    background:#131a29;
+    display:flex;gap:10px;align-items:flex-end;
+  }
+  .composer textarea{
+    flex:1;resize:none;max-height:120px;min-height:44px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:12px;
+    padding:12px 14px;
+    font-family:inherit;font-size:14.5px;line-height:1.4;
+    outline:none;transition:.15s;
+  }
+  .composer textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+  .composer textarea::placeholder{color:#64718f}
+  .send{
+    background:linear-gradient(135deg,var(--accent),#6a5cff);
+    border:none;color:#fff;
+    height:44px;padding:0 20px;border-radius:12px;
+    font-size:14px;font-weight:600;cursor:pointer;
+    transition:.15s;white-space:nowrap;
+  }
+  .send:hover{filter:brightness(1.12)}
+  .send:disabled{opacity:.45;cursor:not-allowed;filter:none}
+
+  /* ---------- Panel debug ---------- */
+  .debug{
+    position:absolute;inset:0;background:rgba(9,13,22,.93);
+    backdrop-filter:blur(4px);
+    display:none;flex-direction:column;z-index:20;border-radius:18px;
+  }
+  .debug.open{display:flex}
+  .debug header{background:transparent}
+  .debug .body{padding:16px 18px;overflow-y:auto;font-size:12.5px;line-height:1.6}
+  .debug table{width:100%;border-collapse:collapse;font-size:12px}
+  .debug th,.debug td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .debug th{color:var(--muted);font-weight:600}
+  .debug code{background:#1b2436;padding:1px 5px;border-radius:5px;font-size:11.5px}
+  .wrap{position:relative}
+
+  .hint{font-size:12px;color:var(--muted);text-align:center;padding:6px}
+  .hint button{
+    background:none;border:none;color:var(--accent-2);
+    cursor:pointer;font-size:12px;text-decoration:underline;padding:2px 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app wrap" id="app">
+
+  <!-- ============ HEADER ============ -->
+  <header>
+    <div class="logo">🤖</div>
+    <div class="titles">
+      <h1>Chatbot Retrieval — Tanpa Training</h1>
+      <p id="subtitle">Memuat dataset…</p>
+    </div>
+    <div class="status-dot loading" id="dot" title="status"></div>
+    <button class="icon-btn" id="btnDebug" title="Info dataset">ⓘ</button>
+    <button class="icon-btn" id="btnClear" title="Bersihkan chat">🗑</button>
+  </header>
+
+  <!-- ============ INFOBAR ============ -->
+  <div class="infobar" id="infobar">
+    <span>Status: <b id="loadStatus">memuat…</b></span>
+    <span>Entri: <b id="entryCount">0</b></span>
+    <span>Ambang: <b id="thrLabel">0.30</b></span>
+  </div>
+
+  <!-- ============ CHAT ============ -->
+  <div class="chat" id="chat"></div>
+
+  <!-- ============ COMPOSER ============ -->
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Tulis pertanyaan… (Enter kirim, Shift+Enter baris baru)"></textarea>
+    <button class="send" id="send">Kirim</button>
+  </div>
+
+  <!-- ============ DEBUG PANEL ============ -->
+  <div class="debug" id="debug">
+    <header>
+      <div class="titles">
+        <h1>Info Dataset</h1>
+        <p>File JSONL yang dimuat &amp; pengaturan pencocokan</p>
+      </div>
+      <button class="icon-btn" id="btnDebugClose">✕</button>
+    </header>
+    <div class="body">
+      <div style="margin-bottom:14px">
+        <label style="display:block;margin-bottom:6px;color:var(--muted)">
+          Ambang batas kemiripan: <code id="thrVal">0.30</code>
+        </label>
+        <input type="range" id="threshold" min="0.05" max="0.90" step="0.01" value="0.30" style="width:100%">
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px">
+          Semakin kecil = chatbot makin "berani" menjawab (risiko ngawur naik).
+        </div>
+      </div>
+      <table id="fileTable">
+        <thead><tr><th>File</th><th>Entri</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div style="margin-top:14px;color:var(--muted);font-size:11.5px">
+        Format field yang didukung otomatis:
+        <code>prompt/response</code>, <code>question/answer</code>,
+        <code>input/output</code>, <code>instruction/completion</code>,
+        <code>user/assistant</code>, <code>messages[]</code>, dll.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =====================================================================
+   KONFIGURASI
+   ===================================================================== */
+const DATASET_DIR = 'dataset/';
+const DATASET_FILES = Array.from({length:12}, (_,i) =>
+  DATASET_DIR + String(i+1).padStart(4,'0') + '-dataset.jsonl'
+);
+
+let THRESHOLD = 0.30;   // ambang minimal kemiripan
+let DATASET  = [];      // {q, a, source, line}
+
+/* =====================================================================
+   UTIL TEKS
+   ===================================================================== */
+const STOPWORDS = new Set([
+  'yang','dan','di','ke','dari','untuk','dengan','pada','adalah','itu','ini',
+  'saya','aku','kamu','anda','nya','kah','lah','ya','tidak','juga','akan',
+  'ada','bisa','dapat','apa','apakah','bagaimana','gimana','kenapa','mengapa',
+  'the','a','an','is','are','was','were','of','to','in','on','at','and','or',
+  'for','with','that','this','it','i','you','me','my','your'
+]);
+
+function normalize(s){
+  return String(s ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(s){
+  return normalize(s)
+    .split(' ')
+    .filter(w => w.length > 1 && !STOPWORDS.has(w));
+}
+
+/* Dice coefficient + bonus substring */
+function similarity(query, target){
+  const tq = tokenize(query);
+  const tt = tokenize(target);
+  if (!tq.length || !tt.length) return 0;
+
+  const setQ = new Set(tq);
+  const setT = new Set(tt);
+
+  let overlap = 0;
+  for (const w of setQ) if (setT.has(w)) overlap++;
+  if (overlap === 0) return 0;
+
+  const dice = (2 * overlap) / (setQ.size + setT.size);
+
+  // bonus bila salah satu string mengandung yang lain
+  const nq = normalize(query);
+  const nt = normalize(target);
+  let bonus = 0;
+  if (nq.length > 3 && nt.length > 3){
+    if (nt === nq)            bonus += 0.45;
+    else if (nt.includes(nq)) bonus += 0.30;
+    else if (nq.includes(nt)) bonus += 0.18;
+  }
+
+  return Math.min(1, dice + bonus);
+}
+
+/* =====================================================================
+   PARSER JSONL  (fleksibel terhadap berbagai format field)
+   ===================================================================== */
+const Q_KEYS = ['prompt','question','input','instruction','query','user',
+                'pertanyaan','soal','human','ask','text','q'];
+const A_KEYS = ['response','answer','output','completion','assistant',
+                'jawaban','bot','gpt','reply','a','response_text'];
+
+function pickKey(obj, keys){
+  // exact
+  for (const k of keys){
+    const v = obj[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  // case-insensitive
+  const lowerMap = {};
+  for (const k of Object.keys(obj)) lowerMap[k.toLowerCase()] = obj[k];
+  for (const k of keys){
+    const v = lowerMap[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function extractPair(obj){
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+
+  // Format: { messages:[{role,content},...] }
+  if (Array.isArray(obj.messages)){
+    let q = null, a = null;
+    for (const m of obj.messages){
+      if (!m || typeof m !== 'object') continue;
+      const role = String(m.role || '').toLowerCase();
+      const content = typeof m.content === 'string' ? m.content.trim() : '';
+      if (!content) continue;
+      if (!q && (role === 'user' || role === 'human')) q = content;
+      else if (role === 'assistant' || role === 'bot' || role === 'ai') a = content;
+    }
+    if (q && a) return { q, a };
+  }
+
+  // Format: { conversations:[{from,value},...] }
+  if (Array.isArray(obj.conversations)){
+    let q = null, a = null;
+    for (const m of obj.conversations){
+      if (!m || typeof m !== 'object') continue;
+      const from = String(m.from || '').toLowerCase();
+      const val  = typeof m.value === 'string' ? m.value.trim() : '';
+      if (!val) continue;
+      if (!q && (from === 'human' || from === 'user')) q = val;
+      else if (from === 'gpt' || from === 'assistant' || from === 'bot') a = val;
+    }
+    if (q && a) return { q, a };
+  }
+
+  // Format: pasangan key standar
+  const q = pickKey(obj, Q_KEYS);
+  const a = pickKey(obj, A_KEYS);
+  if (q && a && q !== a) return { q, a };
+
+  // Fallback: ambil 2 string pertama yang berbeda
+  const strs = Object.values(obj)
+    .filter(v => typeof v === 'string' && v.trim())
+    .map(v => v.trim());
+  if (strs.length >= 2 && strs[0] !== strs[1]) return { q: strs[0], a: strs[1] };
+
+  return null;
+}
+
+function parseJSONL(text, source){
+  const out = [];
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++){
+    const raw = lines[i].trim();
+    if (!raw || raw.startsWith('//')) continue;
+    let obj;
+    try { obj = JSON.parse(raw); } catch { continue; }
+    const pair = extractPair(obj);
+    if (pair) out.push({ q: pair.q, a: pair.a, source, line: i + 1 });
+  }
+  return out;
+}
+
+/* =====================================================================
+   LOAD DATASET
+   ===================================================================== */
+async function loadDatasets(){
+  const report = [];
+  const all = [];
+
+  for (const file of DATASET_FILES){
+    try {
+      const res = await fetch(file, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const pairs = parseJSONL(text, file);
+      all.push(...pairs);
+      report.push({ file, count: pairs.length, ok: true });
+    } catch (err){
+      report.push({ file, count: 0, ok: false, err: err.message });
+    }
+  }
+
+  return { all, report };
+}
+
+/* =====================================================================
+   MESIN PENCARIAN
+   ===================================================================== */
+function findBestAnswer(query){
+  if (!DATASET.length) return null;
+
+  let best = null;
+  let bestScore = -1;
+
+  for (const item of DATASET){
+    const score = similarity(query, item.q);
+    if (score > bestScore){
+      bestScore = score;
+      best = item;
+    }
+  }
+
+  if (!best || bestScore < THRESHOLD) return null;
+  return { ...best, score: bestScore };
+}
+
+const FALLBACKS = [
+  "Maaf, saya belum menemukan jawaban yang cocok di dataset. Coba tulis pertanyaan dengan kata kunci lain ya. 🙏",
+  "Hmm, pertanyaan itu belum ada padanannya di dataset saya. Coba pakai kalimat yang lebih singkat atau kata kunci utama.",
+  "Saya tidak menemukan kecocokan yang cukup di dataset. Boleh diulang dengan kata kunci berbeda?",
+  "Belum ada data yang cocok untuk pertanyaan itu. Coba tanyakan hal lain yang ada di dataset."
+];
+
+/* =====================================================================
+   UI CHAT
+   ===================================================================== */
+const chatEl    = document.getElementById('chat');
+const inputEl   = document.getElementById('input');
+const sendBtn   = document.getElementById('send');
+const dotEl     = document.getElementById('dot');
+const subtitle  = document.getElementById('subtitle');
+const loadStatus= document.getElementById('loadStatus');
+const entryCount= document.getElementById('entryCount');
+const thrLabel  = document.getElementById('thrLabel');
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+
+function scrollBottom(){
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function addMessage(role, html, metaHtml){
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  wrap.innerHTML = `
+    <div class="avatar">${role === 'user' ? '🧑' : '🤖'}</div>
+    <div class="bubble">
+      <div>${html}</div>
+      ${metaHtml ? `<div class="meta">${metaHtml}</div>` : ''}
+    </div>`;
+  chatEl.appendChild(wrap);
+  scrollBottom();
+  return wrap;
+}
+
+function showTyping(){
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  wrap.id = 'typingIndicator';
+  wrap.innerHTML = `
+    <div class="avatar">🤖</div>
+    <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chatEl.appendChild(wrap);
+  scrollBottom();
+}
+
+function hideTyping(){
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function scoreBadge(score){
+  const pct = Math.round(score * 100);
+  let cls = 'lo';
+  if (score >= 0.60) cls = 'hi';
+  else if (score >= 0.38) cls = 'mid';
+  return `<span class="badge ${cls}">kemiripan ${pct}%</span>`;
+}
+
+/* =====================================================================
+   HANDLE PESAN
+   ===================================================================== */
+function handleSend(){
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  addMessage('user', esc(text));
+  inputEl.value = '';
+  autoResize();
+
+  if (!DATASET.length){
+    addMessage('bot',
+      '⚠️ Dataset belum termuat, jadi saya belum bisa menjawab.<br>' +
+      'Pastikan folder <code>dataset/</code> berisi file <code>0001-dataset.jsonl</code> … <code>0012-dataset.jsonl</code>, ' +
+      'dan halaman dibuka lewat <b>localhost</b> (bukan <code>file://</code>).'
+    );
+    return;
+  }
+
+  showTyping();
+  sendBtn.disabled = true;
+
+  // jeda kecil supaya terasa natural
+  const delay = 220 + Math.random() * 320;
+
+  setTimeout(() => {
+    hideTyping();
+    const hit = findBestAnswer(text);
+
+    if (hit){
+      const meta = `
+        ${scoreBadge(hit.score)}
+        <span class="badge">${esc(hit.source.split('/').pop())} · baris ${hit.line}</span>
+        <span class="badge">pertanyaan: "${esc(hit.q.length > 70 ? hit.q.slice(0,70) + '…' : hit.q)}"</span>`;
+      addMessage('bot', esc(hit.a), meta);
+    } else {
+      const fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+      addMessage('bot', esc(fb),
+        `<span class="badge lo">tidak ada kecocokan ≥ ${THRESHOLD.toFixed(2)}</span>`);
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }, delay);
+}
+
+/* =====================================================================
+   EVENTS
+   ===================================================================== */
+sendBtn.addEventListener('click', handleSend);
+
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    handleSend();
+  }
+});
+
+function autoResize(){
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+}
+inputEl.addEventListener('input', autoResize);
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  chatEl.innerHTML = '';
+  greet();
+});
+
+/* ---- Debug panel ---- */
+const debugEl = document.getElementById('debug');
+document.getElementById('btnDebug').addEventListener('click', () => debugEl.classList.add('open'));
+document.getElementById('btnDebugClose').addEventListener('click', () => debugEl.classList.remove('open'));
+
+const thresholdEl = document.getElementById('threshold');
+const thrValEl    = document.getElementById('thrVal');
+thresholdEl.addEventListener('input', () => {
+  THRESHOLD = parseFloat(thresholdEl.value);
+  thrValEl.textContent = THRESHOLD.toFixed(2);
+  thrLabel.textContent = THRESHOLD.toFixed(2);
+});
+
+/* =====================================================================
+   INISIALISASI
+   ===================================================================== */
+function greet(){
+  addMessage('bot',
+    '👋 Halo! Saya chatbot sederhana berbasis <b>pencarian kemiripan</b> (bukan model yang dilatih).<br><br>' +
+    'Saya membaca dataset dari folder <code>dataset/</code> (0001 – 0012 <code>.jsonl</code>). ' +
+    'Tanyakan sesuatu, dan saya akan mencari jawaban paling mirip di dalamnya.'
+  );
+}
+
+async function init(){
+  greet();
+
+  const { all, report } = await loadDatasets();
+  DATASET = all;
+
+  // Isi tabel debug
+  const tbody = document.querySelector('#fileTable tbody');
+  tbody.innerHTML = report.map(r => `
+    <tr>
+      <td><code>${esc(r.file)}</code></td>
+      <td>${r.ok ? r.count : '—'}</td>
+      <td>${r.ok
+            ? `<span style="color:var(--ok)">✓ ok</span>`
+            : `<span style="color:var(--err)">✗ ${esc(r.err || 'gagal')}</span>`}</td>
+    </tr>`).join('');
+
+  const loadedFiles = report.filter(r => r.ok).length;
+  const failedFiles = report.length - loadedFiles;
+
+  entryCount.textContent = DATASET.length.toLocaleString('id-ID');
+
+  if (DATASET.length > 0){
+    dotEl.className = 'status-dot ok';
+    loadStatus.textContent = 'siap';
+    subtitle.textContent = `${DATASET.length.toLocaleString('id-ID')} pasangan Q&A dari ${loadedFiles}/12 file`;
+  } else {
+    dotEl.className = 'status-dot err';
+    loadStatus.textContent = 'gagal memuat';
+    subtitle.textContent = 'Dataset tidak ditemukan';
+    chatEl.innerHTML = '';
+    addMessage('bot',
+      '⚠️ <b>Tidak ada dataset yang berhasil dimuat.</b><br><br>' +
+      'Penyebab paling umum:<br>' +
+      '1. Halaman dibuka lewat <code>file://</code> → browser memblokir <code>fetch()</code>.<br>' +
+      '2. Folder <code>dataset/</code> belum ada di sebelah file HTML ini.<br>' +
+      '3. Nama file tidak sesuai (<code>0001-dataset.jsonl</code> … <code>0012-dataset.jsonl</code>).<br><br>' +
+      'Solusi cepat: jalankan server lokal di folder proyek, contoh:<br>' +
+      '<code>python -m http.server 8000</code><br>' +
+      'lalu buka <code>http://localhost:8000/</code><br><br>' +
+      'Klik tombol ⓘ di kanan atas untuk melihat status tiap file.'
+    );
+  }
+
+  if (failedFiles > 0 && DATASET.length > 0){
+    subtitle.textContent += ` · ${failedFiles} file gagal`;
+  }
+
+  inputEl.focus();
+}
+
+init();
+</script>
+</body>
+</html>
